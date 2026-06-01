@@ -70,10 +70,16 @@ Asegúrate de que los dispositivos cliente estén en la misma red WiFi que el se
 Abre un navegador web en el cliente e ingresa la dirección IP del servidor.
 Por ejemplo: http://localhost:8000
 
+
+```bash
+python -m venv venv
+pip install fastapi uvicorn jinja2 websockets
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
 # Estructura del Repositorio
 
 ```Plaintext
-
 pong-arena/
 ├── client/
 │   ├── join_client.py       # Script de prueba para simular clientes
