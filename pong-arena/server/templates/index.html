@@ -1,12 +1,9 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
     <title>Pong Arena</title>
-
     <style>
-
+        /* Estilos generales del cuerpo de la página */
         body {
             background: #111827;
             color: white;
@@ -16,115 +13,141 @@
             padding-top: 30px;
         }
 
+        /* Estilo para el título principal */
         h1 {
             color: #00e5ff;
         }
 
+        /* Estilos base para todos los botones interactivos */
         button {
-
             padding: 12px 20px;
             margin: 8px;
-
             border: none;
             border-radius: 8px;
-
             cursor: pointer;
-
             font-size: 16px;
         }
 
+        /* Botón de creación de sala (Cyan) */
         #menu button {
             background: #00e5ff;
             color: black;
         }
 
+        /* Botón de estado listo (Verde) */
         #readyButton {
             background: #22c55e;
             color: white;
         }
 
+        /* Campo de texto para ingresar el código de sala */
         input {
-
             padding: 10px;
-
             border-radius: 8px;
             border: none;
-
             margin: 5px;
         }
 
+        /* Ocultamos el lobby por defecto al cargar la página */
         #lobby {
             display: none;
         }
 
+        /* Quitamos las viñetas por defecto de la lista de jugadores */
         #playerList {
             list-style: none;
             padding: 0;
         }
 
+        /* Espaciado y tamaño de fuente para cada jugador en la lista */
         #playerList li {
-
             margin: 10px;
-
             font-size: 18px;
         }
 
-        canvas {
-
-            display: none;
-
-            margin-top: 20px;
-
-            border: 2px solid #00e5ff;
-
-            background: #0f172a;
+        /* --- NUEVO CSS FASE 2: PROBADOR DE CONTROLES --- */
+        
+        /* Contenedor principal de las teclas de prueba */
+        #controlsTester {
+            margin: 20px auto;
+            padding: 15px;
+            background: #1f2937;
+            border-radius: 10px;
+            width: fit-content;
         }
 
+        /* Filas para acomodar la tecla Arriba separada de Izquierda-Abajo-Derecha */
+        .key-row {
+            display: flex;
+            justify-content: center;
+            margin: 5px 0;
+        }
+
+        /* Diseño visual que simula una tecla física de teclado */
+        .key {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
+            margin: 0 5px;
+            background: #374151;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #9ca3af;
+            transition: 0.1s; /* Animación rápida para el cambio de color */
+        }
+
+        /* Clase dinámica que se agregará por JS cuando el usuario presione la tecla */
+        .key.active {
+            background: #00e5ff; /* Color cyan de activación */
+            color: black; /* Contraste del texto */
+            transform: scale(0.95); /* Efecto de hundimiento físico */
+        }
+
+        /* Ocultamos el lienzo de dibujo por defecto */
+        canvas {
+            display: none;
+            margin: 20px auto; /* Centrado automático */
+            border: 2px solid #00e5ff;
+            background: #0f172a;
+        }
     </style>
-
 </head>
-
 <body>
 
 <h1>Pong Arena</h1>
 
 <div id="menu">
-
-    <button onclick="createRoom()">
-        Crear Sala
-    </button>
-
+    <button onclick="createRoom()">Crear Sala</button>
     <br>
-
-    <input
-        id="roomCode"
-        placeholder="Código de sala">
-
-    <button onclick="joinRoom()">
-        Unirse
-    </button>
-
+    <input id="roomCode" placeholder="Código de sala">
+    <button onclick="joinRoom()">Unirse</button>
 </div>
 
 <div id="lobby">
-
     <h2 id="roomTitle"></h2>
-
+    
     <h3>Jugadores</h3>
-
     <ul id="playerList"></ul>
 
-    <button id="readyButton">
-        READY
-    </button>
+    <div id="controlsTester">
+        <h3>Prueba tus controles</h3>
+        <p>Usa Flechas o WASD</p>
+        
+        <div class="key-row">
+            <span id="ui-ArrowUp" class="key">W / ↑</span>
+        </div>
+        <div class="key-row">
+            <span id="ui-ArrowLeft" class="key">A / ←</span>
+            <span id="ui-ArrowDown" class="key">S / ↓</span>
+            <span id="ui-ArrowRight" class="key">D / →</span>
+        </div>
+    </div>
 
+    <button id="readyButton">READY</button>
 </div>
 
-<canvas
-    id="gameCanvas"
-    width="800"
-    height="800">
-</canvas>
+<canvas id="gameCanvas" width="800" height="800"></canvas>
 
 <script src="/static/game.js"></script>
 
