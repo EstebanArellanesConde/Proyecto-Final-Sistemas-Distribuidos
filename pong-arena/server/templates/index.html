@@ -1,155 +1,241 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
     <title>Pong Arena</title>
     <style>
-        /* Estilos generales del cuerpo de la página */
+        /* Aplicamos box-sizing global para evitar que los márgenes internos rompan las dimensiones absolutas */
+        * { box-sizing: border-box; }
+
+        /* El body está anclado matemáticamente a las dimensiones exactas de la ventana del dispositivo */
         body {
             background: #111827;
             color: white;
             font-family: Arial, sans-serif;
-            text-align: center;
             margin: 0;
-            padding-top: 30px;
-        }
-
-        /* Estilo para el título principal */
-        h1 {
-            color: #00e5ff;
-        }
-
-        /* Estilos base para todos los botones interactivos */
-        button {
-            padding: 12px 20px;
-            margin: 8px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        /* Botón de creación de sala (Cyan) */
-        #menu button {
-            background: #00e5ff;
-            color: black;
-        }
-
-        /* Botón de estado listo (Verde) */
-        #readyButton {
-            background: #22c55e;
-            color: white;
-        }
-
-        /* Campo de texto para ingresar el código de sala */
-        input {
-            padding: 10px;
-            border-radius: 8px;
-            border: none;
-            margin: 5px;
-        }
-
-        /* Ocultamos el lobby por defecto al cargar la página */
-        #lobby {
-            display: none;
-        }
-
-        /* Quitamos las viñetas por defecto de la lista de jugadores */
-        #playerList {
-            list-style: none;
             padding: 0;
-        }
-
-        /* Espaciado y tamaño de fuente para cada jugador en la lista */
-        #playerList li {
-            margin: 10px;
-            font-size: 18px;
-        }
-
-        /* --- NUEVO CSS FASE 2: PROBADOR DE CONTROLES --- */
-        
-        /* Contenedor principal de las teclas de prueba */
-        #controlsTester {
-            margin: 20px auto;
-            padding: 15px;
-            background: #1f2937;
-            border-radius: 10px;
-            width: fit-content;
-        }
-
-        /* Filas para acomodar la tecla Arriba separada de Izquierda-Abajo-Derecha */
-        .key-row {
+            /* CRÍTICO: Usamos dvh (Dynamic Viewport Height) para ignorar la barra de direcciones en móviles */
+            height: 100dvh;      
+            width: 100vw;       
+            /* PROHÍBE estrictamente la aparición de barras de desplazamiento (scroll) */
+            overflow: hidden;   
             display: flex;
             justify-content: center;
-            margin: 5px 0;
+            align-items: center;
         }
 
-        /* Diseño visual que simula una tecla física de teclado */
+        /* Clase base estructural para todas las pantallas de la interfaz */
+        .screen {
+            display: none;      /* Ocultas por defecto de la renderización del DOM */
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Clase dinámica inyectada por JS para activar la vista correspondiente en el flujo de Flexbox */
+        .screen.active {
+            display: flex;
+        }
+
+        /* Estilos generales de tipografía y botones interactivos */
+        h1 { color: #00e5ff; margin-bottom: 20px; text-align: center; }
+        button {
+            padding: 12px 20px; margin: 8px;
+            border: none; border-radius: 8px;
+            cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+
+        /* Colores específicos de la paleta del proyecto para botones de acción principal */
+        #menuScreen button { background: #00e5ff; color: black; }
+        #readyButton { background: #22c55e; color: white; font-size: 18px; width: 250px; margin-top: 20px; }
+        
+        /* Estilos base para formularios de captura (Inputs y Selectores) */
+        input, select {
+            padding: 10px; border-radius: 8px;
+            border: none; margin: 5px; font-size: 16px;
+        }
+
+        /* Tarjetas (Cards) para contener elementos visuales con relieve y separación de fondo */
+        .card {
+            background: #1f2937;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 10px;
+            text-align: center;
+        }
+
+        /* Lista de configuración del Lobby sin viñetas estándar y centrada */
+        #playerList { list-style: none; padding: 0; width: 100%; text-align: center; }
+        #playerList li { margin: 10px; font-size: 18px; font-weight: bold; }
+
+        /* Contenedor del emulador de periféricos (Tutorial de teclado WASD/Flechas) */
+        #controlsTester { margin: 10px auto; padding: 15px; background: #374151; border-radius: 10px; }
+        .key-row { display: flex; justify-content: center; margin: 5px 0; }
+        
+        /* Geometría de una tecla individual simulada */
         .key {
-            display: inline-block;
-            width: 60px;
-            height: 60px;
-            line-height: 60px;
-            margin: 0 5px;
-            background: #374151;
+            display: inline-block; width: 50px; height: 50px; line-height: 50px;
+            margin: 0 5px; background: #4b5563; border-radius: 8px;
+            font-weight: bold; color: #9ca3af; transition: 0.1s; text-align: center;
+        }
+        /* Clase de retroalimentación visual al oprimir el control físico */
+        .key.active { background: #00e5ff; color: black; transform: scale(0.95); }
+
+        /* --- CONTENEDOR RESPONSIVO DEL JUEGO (ADAPTACIÓN MÓVIL EXTREMA) --- */
+        #gameScreen.active {
+            display: flex;
+            flex-direction: column; /* Diseño vertical estricto (HUD arriba, Canvas abajo) */
+            width: 100vw;
+            height: 100dvh;         /* Limitado al 100% de la ventana visual dinámica */
+            padding: 10px;
+            /* CRÍTICO: Margen inferior de seguridad para evitar que la tablet recorte la paleta inferior */
+            padding-bottom: 30px;   
+            box-sizing: border-box;
+        }
+
+        /* El HUD superior que contiene los títulos y los puntajes de forma horizontal y compacta */
+        #topHUD {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            flex-shrink: 0;         /* Impide que Flexbox aplaste este contenedor si falta espacio */
+            margin-bottom: 10px;
+        }
+
+        /* Tipografía del encabezado durante el juego */
+        #gameTitle { margin: 0; font-size: 28px; color: #00e5ff; text-transform: uppercase; }
+        #gameSubtitle { margin: 5px 0 10px 0; font-size: 16px; color: #fbbf24; text-align: center; }
+
+        /* Barra horizontal flexible de puntajes */
+        #scoreBoard {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;        /* Permite saltar de línea en pantallas de móviles muy angostas */
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;       /* Mismo ancho máximo que el canvas */
+        }
+
+        /* Renglón de información individual convertido a un chip/etiqueta */
+        .score-item {
+            background: #1f2937;
+            padding: 5px 15px;
             border-radius: 8px;
+            font-size: 16px;
             font-weight: bold;
-            color: #9ca3af;
-            transition: 0.1s; /* Animación rápida para el cambio de color */
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        /* Clase dinámica que se agregará por JS cuando el usuario presione la tecla */
-        .key.active {
-            background: #00e5ff; /* Color cyan de activación */
-            color: black; /* Contraste del texto */
-            transform: scale(0.95); /* Efecto de hundimiento físico */
+        /* El contenedor mágico que absorbe el espacio y centra el lienzo */
+        #canvasContainer {
+            flex: 1;                /* Absorbe TODO el espacio vertical que sobró debajo del HUD */
+            min-height: 0;          /* Destruye el tamaño mínimo implícito de flex, permitiendo encogerse */
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        /* Ocultamos el lienzo de dibujo por defecto */
+        /* EL LIENZO MATEMÁTICO: Blindado contra desbordamientos */
         canvas {
-            display: none;
-            margin: 20px auto; /* Centrado automático */
-            border: 2px solid #00e5ff;
+            max-width: 100%;        /* Nunca desbordará los lados de la pantalla */
+            /* CRÍTICO: Le indicamos que máximo ocupe el 65% de la vista dinámica, dejando respirar al HUD */
+            max-height: 65dvh;      
+            aspect-ratio: 1 / 1;    /* Mantiene su geometría cuadrada perfecta internamente (800x800) */
+            object-fit: contain;    /* Encapsula y encoge el dibujo sin deformar los pixeles */
+            border: 4px solid #374151;
+            border-radius: 8px;
             background: #0f172a;
         }
     </style>
 </head>
 <body>
 
-<h1>Pong Arena</h1>
-
-<div id="menu">
-    <button onclick="createRoom()">Crear Sala</button>
-    <br>
-    <input id="roomCode" placeholder="Código de sala">
-    <button onclick="joinRoom()">Unirse</button>
+<div id="menuScreen" class="screen active">
+    <h1 style="font-size: 48px;">Pong Arena</h1>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+        <div class="card">
+            <h3>Configurar Nueva Partida</h3>
+            <select id="playerCount">
+                <option value="2">2 Jugadores</option>
+                <option value="4">4 Jugadores</option>
+            </select>
+            <select id="targetScore">
+                <option value="5">5 Puntos</option>
+                <option value="10" selected>10 Puntos</option>
+                <option value="20">20 Puntos</option>
+            </select>
+            <br><br>
+            <button onclick="createRoom()">Crear Sala</button>
+        </div>
+        <div class="card">
+            <h3>Unirse a una Partida</h3>
+            <input id="roomCode" placeholder="Código de sala">
+            <br><br>
+            <button onclick="joinRoom()">Unirse</button>
+        </div>
+    </div>
 </div>
 
-<div id="lobby">
-    <h2 id="roomTitle"></h2>
+<div id="lobbyScreen" class="screen">
+    <h2 id="roomTitle" style="font-size: 36px; margin-bottom: 5px;"></h2>
+    <h3 id="roomConfigText" style="color: #9ca3af; margin-top: 0;"></h3>
     
-    <h3>Jugadores</h3>
-    <ul id="playerList"></ul>
+    <h2 id="myRoleText" style="margin: 10px 0;"></h2>
 
-    <div id="controlsTester">
-        <h3>Prueba tus controles</h3>
-        <p>Usa Flechas o WASD</p>
+    <div style="display: flex; gap: 20px; width: 100%; max-width: 800px; flex-wrap: wrap; justify-content: center;">
         
-        <div class="key-row">
-            <span id="ui-ArrowUp" class="key">W / ↑</span>
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <h3>Jugadores en la sala</h3>
+            <ul id="playerList"></ul>
         </div>
-        <div class="key-row">
-            <span id="ui-ArrowLeft" class="key">A / ←</span>
-            <span id="ui-ArrowDown" class="key">S / ↓</span>
-            <span id="ui-ArrowRight" class="key">D / →</span>
+
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div id="controlsTester">
+                <h3 style="margin-top: 0;">Prueba tus controles</h3>
+                <p style="font-size: 14px;">Usa Flechas o WASD</p>
+                <div class="key-row"><span id="ui-ArrowUp" class="key">W / ↑</span></div>
+                <div class="key-row">
+                    <span id="ui-ArrowLeft" class="key">A / ←</span>
+                    <span id="ui-ArrowDown" class="key">S / ↓</span>
+                    <span id="ui-ArrowRight" class="key">D / →</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <button id="readyButton">READY</button>
+    <button id="readyButton">¡ESTOY LISTO!</button>
 </div>
 
-<canvas id="gameCanvas" width="800" height="800"></canvas>
+<div id="gameScreen" class="screen">
+    
+    <div id="topHUD">
+        <h1 id="gameTitle">Pong Arena</h1>
+        <h3 id="gameSubtitle">Esperando inicio...</h3>
+        <div id="scoreBoard"></div>
+    </div>
+    
+    <div id="canvasContainer">
+        <canvas id="gameCanvas" width="800" height="800"></canvas>
+    </div>
+    
+</div>
+
+<div id="gameOverScreen" class="screen">
+    <h1 style="font-size: 60px; color: #fbbf24; margin-bottom: 10px; text-align: center;">¡FIN DEL JUEGO!</h1>
+    <h2 id="winnerText" style="font-size: 48px; margin: 20px 0; text-align: center;"></h2>
+    <button onclick="location.reload()" style="margin-top: 40px; background: #00e5ff; color: black;">
+        Regresar al Menú Principal
+    </button>
+</div>
 
 <script src="/static/game.js"></script>
-
 </body>
 </html>

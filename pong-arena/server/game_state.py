@@ -1,204 +1,180 @@
-# Definición de la clase principal que actúa como el motor matemático aislado para cada sala
+# Definición de la clase principal que actúa como el motor autoritativo de físicas y reglas
 class GameState:
 
-    # Constructor que inicializa el estado físico de la partida
-    def __init__(self):
+    # Constructor que inicializa el estado físico de la partida y recibe la meta de puntos
+    def __init__(self, target_score=10):
 
-        # Ancho absoluto del tablero en píxeles
+        # Ancho absoluto del tablero virtual en píxeles
         self.width = 800
-        # Alto absoluto del tablero en píxeles
+        # Alto absoluto del tablero virtual en píxeles
         self.height = 800
 
-        # Coordenada espacial X inicial de la pelota (exactamente en el centro)
+        # Posición horizontal inicial de la pelota (centro del tablero)
         self.ball_x = 400
-        # Coordenada espacial Y inicial de la pelota (exactamente en el centro)
+        # Posición vertical inicial de la pelota (centro del tablero)
         self.ball_y = 400
 
-        # Vector inicial de velocidad horizontal (píxeles por fotograma)
+        # Vector de velocidad horizontal (píxeles por actualización)
         self.ball_vx = 5
-        # Vector inicial de velocidad vertical (píxeles por fotograma)
+        # Vector de velocidad vertical (píxeles por actualización)
         self.ball_vy = 4
 
-        # Velocidad de desplazamiento de las paletas al oprimir una tecla
+        # Velocidad de desplazamiento de las paletas controladas por el jugador
         self.paddle_speed = 10
-        # Longitud física de la paleta, usada para calcular los bordes
+        # Longitud física del hitbox de cada paleta
         self.paddle_length = 100
 
-        # --- NUEVAS VARIABLES FASE 1 ---
-        # Guardaremos cuántos jugadores iniciaron la partida para definir el conjunto de reglas físicas
+        # Cantidad de jugadores activos para dictar las reglas del entorno (2 o 4)
         self.active_players = 0
-        # Radio del hitbox de la pelota para colisiones desde el borde, no desde el centro
+        # Tamaño radial del hitbox de la pelota para cálculo preciso de colisiones
         self.ball_radius = 10
 
-        # Diccionario que almacena la posición unidimensional (X o Y dependiendo del lado) de cada paleta
+        # Almacenamos la meta de puntos necesaria para ganar el juego
+        self.target_score = target_score
+        
+        # Variable crítica para almacenar qué jugador fue el último en golpear la pelota (LEFT, RIGHT, TOP, BOTTOM)
+        self.last_touch = None
+        
+        # Bandera para detener las físicas cuando alguien alcanza el puntaje objetivo
+        self.game_over = False
+        # Variable para almacenar la cadena de texto con el ID del ganador de la ronda
+        self.winner = None
+
+        # Diccionario con las coordenadas unidimensionales (eje de movimiento) de las paletas
         self.paddles = {
-            "TOP": 350,    # Posición inicial X para el jugador de arriba (centro)
-            "BOTTOM": 350, # Posición inicial X para el jugador de abajo (centro)
-            "LEFT": 350,   # Posición inicial Y para el jugador izquierdo (centro)
-            "RIGHT": 350   # Posición inicial Y para el jugador derecho (centro)
+            "TOP": 350, "BOTTOM": 350,
+            "LEFT": 350, "RIGHT": 350
         }
         
-        # Matriz de estados booleanos para rastrear qué teclas mantiene presionadas cada jugador
+        # Diccionario para rastrear el estado actual (presionado/liberado) de las teclas de cada jugador
         self.inputs = {
-            # El eje X superior solo escucha teclas horizontales
             "TOP": {"ArrowLeft": False, "ArrowRight": False},
-            # El eje X inferior solo escucha teclas horizontales
             "BOTTOM": {"ArrowLeft": False, "ArrowRight": False},
-            # El eje Y izquierdo solo escucha teclas verticales
             "LEFT": {"ArrowUp": False, "ArrowDown": False},
-            # El eje Y derecho solo escucha teclas verticales
             "RIGHT": {"ArrowUp": False, "ArrowDown": False}
         }
 
-        # Diccionario de puntajes o vidas iniciales para cada jugador
+        # Diccionario de puntajes, ahora inicializado en 0 para contar de forma incremental
         self.scores = {
-            "TOP": 3,
-            "RIGHT": 3,
-            "BOTTOM": 3,
-            "LEFT": 3
+            "TOP": 0, "RIGHT": 0,
+            "BOTTOM": 0, "LEFT": 0
         }
 
-        # Bandera booleana para impedir el cálculo físico hasta que todos estén listos
+        # Bandera lógica para congelar la pelota hasta que la interfaz indique el inicio
         self.started = False
 
-    # --- NUEVO MÉTODO FASE 1 ---
-    # Método invocado por app.py cuando la sala cumple las condiciones para empezar
+    # Método invocado por app.py cuando la sala está lista para iniciar
     def start_game(self, num_players):
-        # Almacenamos si es una partida de 2 o 4 jugadores
+        # Registramos cuántos jugadores entraron para adaptar las paredes
         self.active_players = num_players
-        # Liberamos el bloqueo lógico para que el método update comience a mover la pelota
+        # Habilitamos el cálculo físico
         self.started = True
 
-    # --- NUEVO MÉTODO FASE 1 ---
-    # Método para regresar la pelota al centro cuando alguien pierde un punto
+    # Método para regresar la pelota al centro del mapa tras una anotación
     def reset_ball(self):
-        # Reposicionamos X a la mitad del tablero absoluto
+        # Devolvemos X al centro absoluto
         self.ball_x = self.width / 2
-        # Reposicionamos Y a la mitad del tablero absoluto
+        # Devolvemos Y al centro absoluto
         self.ball_y = self.height / 2
-        # Invertimos el vector de velocidad horizontal para que el saque vaya hacia quien acaba de anotar
+        # Invertimos la velocidad horizontal para darle el saque inicial al perdedor
         self.ball_vx *= -1
+        # IMPORTANTE: Borramos la memoria del último toque para evitar puntos fantasma en el nuevo saque
+        self.last_touch = None
 
-    # Interfaz para que el servidor inyecte los comandos de red en la matriz de estados local
-    def set_input(self, position, key, pressed):
-        # Validamos que el jugador sea un eje horizontal (Arriba o Abajo) y su tecla sea válida
-        if position in ["TOP", "BOTTOM"] and key in ["ArrowLeft", "ArrowRight"]:
-            # Guardamos el estado de la tecla (True si se pulsó, False si se liberó)
-            self.inputs[position][key] = pressed
+    # Método encargado de evaluar y asignar el puntaje bajo la regla del "Último Toque"
+    def award_point(self):
+        # Solo procesamos el punto si alguien golpeó la pelota (evita puntos si nadie tocó la pelota en el saque)
+        if self.last_touch is not None:
+            # Sumamos un punto entero al jugador que realizó el último impacto
+            self.scores[self.last_touch] += 1
             
-        # Validamos que el jugador sea un eje vertical (Izquierda o Derecha) y su tecla sea válida
+            # Verificamos si este nuevo punto iguala o supera la condición de victoria
+            if self.scores[self.last_touch] >= self.target_score:
+                # Marcamos el fin del juego para detener el loop de físicas en update()
+                self.game_over = True
+                # Registramos oficialmente al ganador de la partida
+                self.winner = self.last_touch
+                
+        # Independientemente de si hubo punto o no, reseteamos la pelota para continuar
+        self.reset_ball()
+
+    # Interfaz para actualizar el estado de los controles desde la red
+    def set_input(self, position, key, pressed):
+        if position in ["TOP", "BOTTOM"] and key in ["ArrowLeft", "ArrowRight"]:
+            self.inputs[position][key] = pressed
         elif position in ["LEFT", "RIGHT"] and key in ["ArrowUp", "ArrowDown"]:
-            # Guardamos el estado de la tecla
             self.inputs[position][key] = pressed
 
-    # Función iterativa principal llamada a 60 FPS desde app.py
+    # Función del núcleo matemático, invocada 60 veces por segundo (60 FPS)
     def update(self):
         
-        # === BLOQUE DE MOVIMIENTO DE PALETAS HORIZONTALES (EJE X) ===
-        
-        # Si el jugador de arriba presiona izquierda...
-        if self.inputs["TOP"]["ArrowLeft"]:
-            # Restamos la velocidad, impidiendo mediante 'max' que cruce el límite izquierdo (0)
-            self.paddles["TOP"] = max(0, self.paddles["TOP"] - self.paddle_speed)
-            
-        # Si el jugador de arriba presiona derecha...
-        if self.inputs["TOP"]["ArrowRight"]:
-            # Sumamos la velocidad, impidiendo mediante 'min' que el borde derecho de la paleta salga del mapa
-            self.paddles["TOP"] = min(self.width - self.paddle_length, self.paddles["TOP"] + self.paddle_speed)
-            
-        # Si el jugador de abajo presiona izquierda...
-        if self.inputs["BOTTOM"]["ArrowLeft"]:
-            # Límite rígido en el borde 0
-            self.paddles["BOTTOM"] = max(0, self.paddles["BOTTOM"] - self.paddle_speed)
-            
-        # Si el jugador de abajo presiona derecha...
-        if self.inputs["BOTTOM"]["ArrowRight"]:
-            # Límite rígido considerando el tamaño de la paleta
-            self.paddles["BOTTOM"] = min(self.width - self.paddle_length, self.paddles["BOTTOM"] + self.paddle_speed)
+        # Abortamos inmediatamente cualquier cálculo de movimiento si la partida ya tiene un ganador
+        if self.game_over:
+            return
 
-        # === BLOQUE DE MOVIMIENTO DE PALETAS VERTICALES (EJE Y) ===
-        
-        # Si el jugador izquierdo presiona arriba...
-        if self.inputs["LEFT"]["ArrowUp"]:
-            # Restamos Y para subir, impidiendo cruzar el techo (0)
-            self.paddles["LEFT"] = max(0, self.paddles["LEFT"] - self.paddle_speed)
-            
-        # Si el jugador izquierdo presiona abajo...
-        if self.inputs["LEFT"]["ArrowDown"]:
-            # Sumamos Y para bajar, limitando con el suelo de la ventana
-            self.paddles["LEFT"] = min(self.height - self.paddle_length, self.paddles["LEFT"] + self.paddle_speed)
-            
-        # Si el jugador derecho presiona arriba...
-        if self.inputs["RIGHT"]["ArrowUp"]:
-            # Limitamos movimiento hacia el techo
-            self.paddles["RIGHT"] = max(0, self.paddles["RIGHT"] - self.paddle_speed)
-            
-        # Si el jugador derecho presiona abajo...
-        if self.inputs["RIGHT"]["ArrowDown"]:
-            # Limitamos movimiento hacia el suelo
-            self.paddles["RIGHT"] = min(self.height - self.paddle_length, self.paddles["RIGHT"] + self.paddle_speed)
+        # === BLOQUE DE MOVIMIENTO DE PALETAS (Límites rígidos en bordes) ===
+        if self.inputs["TOP"]["ArrowLeft"]: self.paddles["TOP"] = max(0, self.paddles["TOP"] - self.paddle_speed)
+        if self.inputs["TOP"]["ArrowRight"]: self.paddles["TOP"] = min(self.width - self.paddle_length, self.paddles["TOP"] + self.paddle_speed)
+        if self.inputs["BOTTOM"]["ArrowLeft"]: self.paddles["BOTTOM"] = max(0, self.paddles["BOTTOM"] - self.paddle_speed)
+        if self.inputs["BOTTOM"]["ArrowRight"]: self.paddles["BOTTOM"] = min(self.width - self.paddle_length, self.paddles["BOTTOM"] + self.paddle_speed)
+        if self.inputs["LEFT"]["ArrowUp"]: self.paddles["LEFT"] = max(0, self.paddles["LEFT"] - self.paddle_speed)
+        if self.inputs["LEFT"]["ArrowDown"]: self.paddles["LEFT"] = min(self.height - self.paddle_length, self.paddles["LEFT"] + self.paddle_speed)
+        if self.inputs["RIGHT"]["ArrowUp"]: self.paddles["RIGHT"] = max(0, self.paddles["RIGHT"] - self.paddle_speed)
+        if self.inputs["RIGHT"]["ArrowDown"]: self.paddles["RIGHT"] = min(self.height - self.paddle_length, self.paddles["RIGHT"] + self.paddle_speed)
 
         # === BLOQUE DE FÍSICAS DE LA PELOTA ===
-        
-        # Evaluamos si la bandera de inicio de partida ya fue activada por app.py
         if self.started:
             
-            # Desplazamos la pelota horizontalmente sumando el vector de velocidad X
+            # Aplicamos los vectores de inercia a la posición espacial
             self.ball_x += self.ball_vx
-            # Desplazamos la pelota verticalmente sumando el vector de velocidad Y
             self.ball_y += self.ball_vy
 
-            # --- NUEVAS FÍSICAS FASE 1: MODO 2 JUGADORES ---
-            # Si el motor detecta que solo hay dos clientes conectados...
-            if self.active_players == 2:
-                
-                # 1. Colisión con la pared superior (Techo)
-                # Comprobamos si el borde superior de la pelota (centro - radio) choca o pasa el límite de Y=0
-                if self.ball_y - self.ball_radius <= 0:
-                    # Desencajamos la pelota posicionándola en el borde exacto
-                    self.ball_y = self.ball_radius
-                    # Invertimos el vector de velocidad vertical para efectuar el rebote
-                    self.ball_vy *= -1
+            # 1. Colisión con la paleta IZQUIERDA
+            if self.ball_x - self.ball_radius <= 20:
+                if self.paddles["LEFT"] <= self.ball_y <= self.paddles["LEFT"] + self.paddle_length:
+                    self.ball_x = 20 + self.ball_radius # Desencajamos
+                    self.ball_vx *= -1 # Rebotamos
+                    self.last_touch = "LEFT" # Registramos a este jugador como el último en tocar
                     
-                # 2. Colisión con la pared inferior (Suelo)
-                # Comprobamos si el borde inferior (centro + radio) choca con el límite máximo (800)
-                elif self.ball_y + self.ball_radius >= self.height:
-                    # Desencajamos la pelota del suelo
-                    self.ball_y = self.height - self.ball_radius
-                    # Invertimos el vector vertical
-                    self.ball_vy *= -1
-                    
-                # 3. Colisión con la paleta IZQUIERDA
-                # Verificamos si la pelota cruza el plano X donde está dibujada la paleta izquierda (X=10 + ancho=10)
-                if self.ball_x - self.ball_radius <= 20:
-                    # Verificamos si en ese preciso instante, la pelota intercepta el rango Y de la paleta
-                    if self.paddles["LEFT"] <= self.ball_y <= self.paddles["LEFT"] + self.paddle_length:
-                        # Desencajamos la pelota de la paleta
-                        self.ball_x = 20 + self.ball_radius
-                        # Invertimos la velocidad horizontal para rebotar hacia la derecha
-                        self.ball_vx *= -1
-                        
-                # 4. Colisión con la paleta DERECHA
-                # Verificamos si la pelota cruza el plano X donde está dibujada la paleta derecha (X=780)
-                if self.ball_x + self.ball_radius >= 780:
-                    # Verificamos la intersección en el eje Y
-                    if self.paddles["RIGHT"] <= self.ball_y <= self.paddles["RIGHT"] + self.paddle_length:
-                        # Desencajamos
-                        self.ball_x = 780 - self.ball_radius
-                        # Rebote horizontal hacia la izquierda
-                        self.ball_vx *= -1
+            # 2. Colisión con la paleta DERECHA
+            elif self.ball_x + self.ball_radius >= 780:
+                if self.paddles["RIGHT"] <= self.ball_y <= self.paddles["RIGHT"] + self.paddle_length:
+                    self.ball_x = 780 - self.ball_radius
+                    self.ball_vx *= -1
+                    self.last_touch = "RIGHT" # Registramos a este jugador como el último en tocar
 
-                # 5. Sistema de Puntuación (Salidas del Mapa)
-                # Si el centro de la pelota cruza el límite izquierdo absoluto (0)
-                if self.ball_x < 0:
-                    # Castigamos al jugador izquierdo restándole un punto
-                    self.scores["LEFT"] -= 1
-                    # Reseteamos la posición para el siguiente saque
-                    self.reset_ball()
+            # === ADAPTACIÓN DE ENTORNO: 2 JUGADORES ===
+            if self.active_players == 2:
+                # Techo sólido: Rebota pero NO registra last_touch
+                if self.ball_y - self.ball_radius <= 0:
+                    self.ball_y = self.ball_radius
+                    self.ball_vy *= -1
                     
-                # Si el centro cruza el límite derecho absoluto (800)
-                elif self.ball_x > self.width:
-                    # Castigamos al jugador derecho restándole un punto
-                    self.scores["RIGHT"] -= 1
-                    # Reseteamos la posición
-                    self.reset_ball()
+                # Suelo sólido: Rebota pero NO registra last_touch
+                elif self.ball_y + self.ball_radius >= self.height:
+                    self.ball_y = self.height - self.ball_radius
+                    self.ball_vy *= -1
+
+                # Si la pelota se pierde por la izquierda o por la derecha, asignamos el punto a quien la tocó al final
+                if self.ball_x < 0 or self.ball_x > self.width:
+                    self.award_point()
+
+            # === ADAPTACIÓN DE ENTORNO: 4 JUGADORES ===
+            elif self.active_players == 4:
+                # 3. Colisión orgánica con la paleta SUPERIOR
+                if self.ball_y - self.ball_radius <= 20:
+                    if self.paddles["TOP"] <= self.ball_x <= self.paddles["TOP"] + self.paddle_length:
+                        self.ball_y = 20 + self.ball_radius
+                        self.ball_vy *= -1
+                        self.last_touch = "TOP" # Registramos el toque
+                        
+                # 4. Colisión orgánica con la paleta INFERIOR
+                elif self.ball_y + self.ball_radius >= 780:
+                    if self.paddles["BOTTOM"] <= self.ball_x <= self.paddles["BOTTOM"] + self.paddle_length:
+                        self.ball_y = 780 - self.ball_radius
+                        self.ball_vy *= -1
+                        self.last_touch = "BOTTOM" # Registramos el toque
+
+                # En 4P, cualquier salida del mapa detona la asignación del punto al último que tocó
+                if self.ball_x < 0 or self.ball_x > self.width or self.ball_y < 0 or self.ball_y > self.height:
+                    self.award_point()

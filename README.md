@@ -94,3 +94,40 @@ pong-arena/
 │   └── rooms.py             # Estructura de datos para manejar múltiples partidas
 └── README.md
 ```
+ACTUALIZACIÓN PRIMER CAMBIO:
+
+## ✨ Características Principales
+
+* **Escalabilidad Dinámica (2 vs 4 Jugadores):** El motor físico se adapta según los jugadores presentes al iniciar la partida. Para 2 jugadores, habilita paredes sólidas superior e inferior para un rebote clásico. Para 4 jugadores, abre el tablero completo.
+* **Normalización de Controles (Cross-Input):** La interfaz cliente permite usar tanto las flechas direccionales estándar como las teclas `W A S D`. El frontend traduce automáticamente estas entradas al formato esperado por el servidor.
+* **Probador de Controles en Antesala:** El Lobby incluye una interfaz interactiva que ilumina las teclas físicas presionadas, garantizando que el hardware del dispositivo cliente está siendo leído correctamente antes de declarar el estado *READY*.
+* **Servidor Autoritativo:** La lógica pesada, las colisiones y el puntaje (`game_state.py`) se calculan centralizadamente a 60 FPS en el servidor (FastAPI/asyncio) para evitar desincronización (*lag*) entre los clientes.
+* **Gestión de Salas (Lobbies):** Soporte para múltiples partidas simultáneas e independientes mediante un sistema de gestión de salas (`rooms.py`).
+* **Multiplataforma (Web-based):** Los clientes solo necesitan acceder a la IP del host desde su navegador (interfaz construida con HTML5 Canvas y JS). No requiere instalación.
+
+## 🛠️ Stack Tecnológico
+
+* **Backend / Host:** Python 3.x, FastAPI.
+* **Comunicación:** WebSockets (TCP) bidireccional asíncrona gestionada mediante Uvicorn.
+* **Frontend / UI:** HTML5, CSS3, Vanilla JavaScript (`game.js`), API de Canvas 2D.
+
+## ⚙️ Arquitectura de Red
+
+El proyecto está diseñado para funcionar en una **Red de Área Local (LAN)** o mediante un **Mobile Hotspot** generado por el servidor host, evadiendo las restricciones de NAT o firewalls institucionales. 
+
+1. El host levanta el servidor Python enlazándolo a todas las interfaces de red (`0.0.0.0`) en un puerto específico.
+2. Los dispositivos cliente se conectan a la misma red WiFi.
+3. Los clientes acceden mediante el navegador a la dirección IPv4 local del host (ej. `http://192.168.1.XX:8000`).
+
+## 🚀 Instalación y Ejecución
+
+### Prerrequisitos
+* Python 3.8 o superior.
+* Gestor de paquetes `pip`.
+* Entorno Linux/WSL (recomendado) o Windows.
+
+1. Clona este repositorio:
+
+```bash
+   git clone [https://github.com/EstebanArellanesConde/Proyecto-Final-Sistemas-Distribuidos.git](https://github.com/EstebanArellanesConde/Proyecto-Final-Sistemas-Distribuidos.git)
+   cd Proyecto-Final-Sistemas-Distribuidos/pong-arena
