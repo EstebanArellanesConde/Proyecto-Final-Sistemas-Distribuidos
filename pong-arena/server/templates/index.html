@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>Pong Arena - Pantalla Dividida</title>
     <style>
-        /* Reseteo global: evita que los bordes y márgenes internos sumen al tamaño total del elemento */
+        /* Aplicamos box-sizing global para evitar que los márgenes internos rompan las dimensiones absolutas */
         * { box-sizing: border-box; }
 
-        /* Contenedor principal que abarca toda la pantalla de forma dinámica */
+        /* El body está anclado matemáticamente a las dimensiones exactas de la ventana del dispositivo */
         body {
             background: #111827; /* Color de fondo oscuro */
             color: white; /* Texto blanco por defecto */
@@ -17,15 +17,16 @@
             /* 100dvh (Dynamic Viewport Height) ignora la barra de direcciones en móviles */
             height: 100dvh;      
             width: 100vw;       
-            overflow: hidden; /* Oculta cualquier desbordamiento para evitar scroll */
+            /* PROHÍBE estrictamente la aparición de barras de desplazamiento (scroll) */
+            overflow: hidden;   
             display: flex;
             justify-content: center; /* Centra el contenido horizontalmente */
             align-items: center; /* Centra el contenido verticalmente */
         }
 
-        /* Clase base para las 4 pantallas (Menú, Lobby, Juego, Fin) */
+        /* Clase base estructural para todas las pantallas de la interfaz */
         .screen {
-            display: none; /* Ocultas por defecto */
+            display: none;      /* Ocultas por defecto de la renderización del DOM */
             width: 100%;
             height: 100%;
             flex-direction: column;
@@ -34,12 +35,12 @@
             padding: 20px;
         }
 
-        /* Clase activa que Javascript inyectará para mostrar la pantalla actual */
+        /* Clase dinámica inyectada por JS para activar la vista correspondiente en el flujo de Flexbox */
         .screen.active {
             display: flex;
         }
 
-        /* Estilos de tipografía y botones globales */
+        /* Estilos generales de tipografía y botones interactivos */
         h1 { color: #00e5ff; margin-bottom: 20px; text-align: center; }
         button {
             padding: 12px 20px; margin: 8px;
@@ -47,17 +48,17 @@
             cursor: pointer; font-size: 16px; font-weight: bold;
         }
 
-        /* Colores específicos para botones principales */
+        /* Colores específicos de la paleta del proyecto para botones de acción principal */
         #menuScreen button { background: #00e5ff; color: black; }
         #readyButton { background: #22c55e; color: white; font-size: 18px; width: 250px; margin-top: 20px; }
         
-        /* Entradas de texto y menús desplegables redondeados */
+        /* Estilos base para formularios de captura (Inputs y Selectores) */
         input, select {
             padding: 10px; border-radius: 8px;
             border: none; margin: 5px; font-size: 16px;
         }
 
-        /* Tarjetas de fondo oscuro para agrupar elementos de interfaz */
+        /* Tarjetas (Cards) para contener elementos visuales con relieve y separación de fondo */
         .card {
             background: #1f2937;
             padding: 20px;
@@ -66,60 +67,62 @@
             text-align: center;
         }
 
-        /* Lista de jugadores sin viñetas y centrada */
+        /* Lista de configuración del Lobby sin viñetas estándar y centrada */
         #playerList { list-style: none; padding: 0; width: 100%; text-align: center; }
         #playerList li { margin: 10px; font-size: 18px; font-weight: bold; }
 
-        /* Probador visual de controles WASD / Flechas */
+        /* Contenedor del emulador de periféricos (Tutorial de teclado WASD/Flechas) */
         #controlsTester { margin: 10px auto; padding: 15px; background: #374151; border-radius: 10px; }
         .key-row { display: flex; justify-content: center; margin: 5px 0; }
         
-        /* Cajas individuales que simulan las teclas físicas */
+        /* Geometría de una tecla individual simulada */
         .key {
             display: inline-block; width: 50px; height: 50px; line-height: 50px;
             margin: 0 5px; background: #4b5563; border-radius: 8px;
             font-weight: bold; color: #9ca3af; transition: 0.1s; text-align: center;
         }
-        /* Efecto visual cuando la tecla es presionada */
+        /* Clase de retroalimentación visual al oprimir el control físico */
         .key.active { background: #00e5ff; color: black; transform: scale(0.95); }
 
-        /* --- CONTENEDOR DEL JUEGO RESPONSIVO --- */
+        /* --- CONTENEDOR RESPONSIVO DEL JUEGO (ADAPTACIÓN MÓVIL EXTREMA) --- */
         #gameScreen.active {
             display: flex;
-            flex-direction: column; /* Coloca el HUD arriba y el Canvas abajo */
+            flex-direction: column; /* Diseño vertical estricto (HUD arriba, Canvas abajo) */
             width: 100vw;
-            height: 100dvh;         
+            height: 100dvh;         /* Limitado al 100% de la ventana visual dinámica */
             padding: 10px;
-            padding-bottom: 30px; /* Espacio de seguridad para dispositivos móviles */  
+            /* Margen inferior de seguridad para evitar recortes en tablets */
+            padding-bottom: 30px;   
             box-sizing: border-box;
         }
 
-        /* HUD Superior (Títulos y Puntuaciones) */
+        /* El HUD superior que contiene los títulos y los puntajes de forma horizontal y compacta */
         #topHUD {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            flex-shrink: 0; /* Impide que el HUD se aplaste si falta espacio vertical */        
+            flex-shrink: 0;         /* Impide que Flexbox aplaste este contenedor si falta espacio */
             margin-bottom: 10px;
         }
 
-        /* Textos del HUD */
+        /* Tipografía del encabezado durante el juego */
         #gameTitle { margin: 0; font-size: 28px; color: #00e5ff; text-transform: uppercase; }
         #gameSubtitle { margin: 5px 0 10px 0; font-size: 16px; color: #fbbf24; text-align: center; }
 
-        /* Barra de puntajes horizontal */
+        /* Barra horizontal flexible de puntajes */
         #scoreBoard {
             display: flex;
             flex-direction: row;
-            flex-wrap: wrap; /* Permite saltos de línea si la pantalla es muy delgada */       
+            flex-wrap: wrap;        /* Permite saltar de línea en pantallas muy angostas */
             justify-content: center;
             gap: 15px;
             width: 100%;
-            max-width: 400px; /* Adaptado al nuevo ancho de cámara */
+            /* MODIFICACIÓN: Reducimos max-width para alinearse con el ancho de cámara (400px) */
+            max-width: 400px;       
         }
 
-        /* Fichas individuales de puntaje por jugador */
+        /* Renglón de información individual convertido a un chip/etiqueta */
         .score-item {
             background: #1f2937;
             padding: 5px 15px;
@@ -131,23 +134,24 @@
             gap: 10px;
         }
 
-        /* Contenedor que encierra el Canvas para manejar su tamaño responsivo */
+        /* El contenedor mágico que absorbe el espacio vertical y centra el lienzo */
         #canvasContainer {
-            flex: 1; /* Absorbe el espacio vertical sobrante debajo del HUD */               
-            min-height: 0; /* Permite que el contenedor colapse si es necesario */         
+            flex: 1;                /* Absorbe TODO el espacio vertical que sobró debajo del HUD */
+            min-height: 0;          /* Destruye el tamaño mínimo implícito de flex, permitiendo encogerse */
             width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            margin-top: 10px;
         }
 
-        /* --- LENTE DE CÁMARA (PANTALLA DIVIDIDA) --- */
+        /* EL LIENZO MATEMÁTICO: Blindado contra desbordamientos */
         canvas {
-            max-width: 100%;        
-            max-height: 65dvh; /* Límite de altura máxima para no tapar el HUD */     
-            /* MODIFICACIÓN: La relación de aspecto ahora es 1/2 (400 ancho / 800 alto) */
+            max-width: 100%;        /* Nunca desbordará los lados de la pantalla */
+            max-height: 65dvh;      /* Ocupa máximo el 65% del alto dinámico */
+            /* MODIFICACIÓN: Relación de aspecto vertical 1:2 (400x800) para pantalla dividida */
             aspect-ratio: 1 / 2;    
-            object-fit: contain; /* Ajusta el lienzo al espacio disponible sin deformarlo */   
+            object-fit: contain;    /* Encapsula y encoge el dibujo sin deformar los pixeles */
             border: 4px solid #374151;
             border-radius: 8px;
             background: #0f172a;
@@ -159,7 +163,6 @@
 <div id="menuScreen" class="screen active">
     <h1 style="font-size: 48px;">Pong Arena</h1>
     <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-        
         <div class="card">
             <h3>Configurar Nueva Partida</h3>
             <select id="playerCount">
@@ -174,7 +177,6 @@
             <br><br>
             <button onclick="createRoom()">Crear Sala</button>
         </div>
-        
         <div class="card">
             <h3>Unirse a una Partida</h3>
             <input id="roomCode" placeholder="Código de sala">
@@ -236,6 +238,6 @@
     </button>
 </div>
 
-<script src="/static/game.js"></script>
+<script src="/static/game.js?v=3"></script>
 </body>
 </html>
